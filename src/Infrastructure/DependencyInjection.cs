@@ -12,7 +12,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
         services.AddDbContext<IApplicationDbContext, ApplicationDbContext>(options =>
-            options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+            options.UseSqlite(config.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<ITokenService, TokenService>();
 services.AddScoped<IPasswordHasher, PasswordHasher>();
