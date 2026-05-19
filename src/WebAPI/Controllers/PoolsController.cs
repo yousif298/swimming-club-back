@@ -20,4 +20,8 @@ public class PoolsController : BaseController
     [HttpGet("{poolId}/lanes")]
     public async Task<IActionResult> GetLanes(Guid poolId)
         => Ok(await Mediator.Send(new GetLanesQuery(poolId)));
+
+    [HttpGet("{poolId}/report")]
+    public async Task<IActionResult> GetReport(Guid poolId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+        => Ok(await Mediator.Send(new GetPoolReportQuery(poolId, from, to)));
 }

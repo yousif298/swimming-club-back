@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SwimmingClub.Application.Features.Bookings.Queries;
 using SwimmingClub.Application.Features.Customers.Commands;
 using SwimmingClub.Application.Features.Customers.Queries;
+using SwimmingClub.Application.Features.Payments.Queries;
 using SwimmingClub.WebAPI.Controllers;
 
 namespace SwimmingClub.WebAPI.Controllers;
@@ -16,4 +18,12 @@ public class CustomersController : BaseController
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCustomerCommand command)
         => HandleResult(await Mediator.Send(command));
+
+    [HttpGet("{customerId}/bookings")]
+    public async Task<IActionResult> GetBookings(Guid customerId)
+        => Ok(await Mediator.Send(new GetCustomerBookingsQuery(customerId)));
+
+    [HttpGet("{customerId}/payments")]
+    public async Task<IActionResult> GetPayments(Guid customerId)
+        => Ok(await Mediator.Send(new GetCustomerPaymentsQuery(customerId)));
 }
