@@ -1,0 +1,16 @@
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.csproj.AssemblyReference.cache
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.GeneratedMSBuildEditorConfig.editorconfig
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.AssemblyInfoInputs.cache
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.AssemblyInfo.cs
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.csproj.CoreCompileInputs.cache
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.sourcelink.json
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/bin/Debug/net8.0/Application.deps.json
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/bin/Debug/net8.0/Application.dll
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/bin/Debug/net8.0/Application.pdb
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/bin/Debug/net8.0/Domain.dll
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/bin/Debug/net8.0/Domain.pdb
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Applicat.44B5EDA2.Up2Date
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.dll
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/refint/Application.dll
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/Application.pdb
+/private/var/folders/cw/thbxp1rn6v361p_b8m8srl1h0000gn/T/opencode/swimming-club/backend/src/Application/obj/Debug/net8.0/ref/Application.dll

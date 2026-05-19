@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SwimmingClub.Application;
 using SwimmingClub.Infrastructure;
+using SwimmingClub.Infrastructure.Persistence;
 using SwimmingClub.WebAPI.Hubs;
 using SwimmingClub.WebAPI.Middleware;
 using System.Text;
@@ -92,7 +93,7 @@ app.MapHub<BookingHub>("/hubs/bookings");
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.EnsureCreated();
 }
 

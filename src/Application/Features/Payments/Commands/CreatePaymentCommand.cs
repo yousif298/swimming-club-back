@@ -26,8 +26,9 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
 
     public async Task<Result<PaymentDto>> Handle(CreatePaymentCommand request, CancellationToken ct)
     {
-        var customer = await _context.Customers.FindAsync(new object[] { request.CustomerId }, ct)
-            ?? return Result<PaymentDto>.Failure("Customer not found");
+        var customer = await _context.Customers.FindAsync(new object[] { request.CustomerId }, ct);
+        if (customer is null)
+            return Result<PaymentDto>.Failure("Customer not found");
 
         var payment = new Payment
         {

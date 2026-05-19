@@ -1,3 +1,5 @@
+using SwimmingClub.Domain.Enums;
+
 namespace SwimmingClub.Domain.Entities;
 
 public class Payment : BaseEntity
