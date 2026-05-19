@@ -14,7 +14,8 @@ public record MirrorViewDto(
     Guid PoolId,
     string PoolName,
     List<LaneMirrorDto> Lanes,
-    List<TimeSlotMirrorDto> TimeSlots
+    List<TimeSlotMirrorDto> TimeSlots,
+    List<MirrorSlotDto> Slots
 );
 
 public record LaneMirrorDto(Guid Id, int Number);
@@ -22,11 +23,13 @@ public record LaneMirrorDto(Guid Id, int Number);
 public record TimeSlotMirrorDto(Guid Id, string Display, int OrderIndex);
 
 public record MirrorSlotDto(
+    Guid LaneId,
+    Guid SlotId,
     Guid? BookingId,
     Guid? CustomerId,
     string? CustomerName,
     string? BookingType,
-    string Status // available, booked, pending
+    string Status
 );
 
 public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, MirrorViewDto>
@@ -54,6 +57,29 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
         var lanes = pool.Lanes.Select(l => new LaneMirrorDto(l.Id, l.LaneNumber)).ToList();
         var slotDtos = timeSlots.Select(t => new TimeSlotMirrorDto(t.Id, t.DisplayTime, t.OrderIndex)).ToList();
 
-        return new MirrorViewDto(pool.Id, pool.Name, lanes, slotDtos);
+        var bookingMap = bookings.ToDictionary(b => (b.LaneId, b.SlotId));
+        var slots = new List<MirrorSlotDto>();
+        foreach (var lane in pool.Lanes)
+        {
+            foreach (var slot in timeSlots)
+            {
+                var key = (lane.Id, slot.Id);
+                if (bookingMap.TryGetValue(key, out var booking))
+                {
+                    slots.Add(new MirrorSlotDto(
+                        lane.Id, slot.Id,
+                        booking.Id, booking.CustomerId,
+                        booking.Customer.FullName, booking.BookingType.ToString(),
+                        booking.PaymentStatus == PaymentStatus.Pending ? "pending" : "booked"
+                    ));
+                }
+                else
+                {
+                    slots.Add(new MirrorSlotDto(lane.Id, slot.Id, null, null, null, null, "available"));
+                }
+            }
+        }
+
+        return new MirrorViewDto(pool.Id, pool.Name, lanes, slotDtos, slots);
     }
 }

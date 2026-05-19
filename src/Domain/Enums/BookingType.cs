@@ -2,8 +2,12 @@ namespace SwimmingClub.Domain.Enums;
 
 public enum BookingType
 {
-    Swimming = 1,
-    PrivateTraining = 2,
-    LaneRental = 3,
-    SwimmingSchool = 4
+    LaneHire = 1,
+    Lesson = 2,
+    Casual = 3,
+    School = 4,
+    Swimming = 5,
+    PrivateTraining = 6,
+    LaneRental = 7,
+    SwimmingSchool = 8
 }

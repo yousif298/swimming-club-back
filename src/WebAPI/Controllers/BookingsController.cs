@@ -20,4 +20,8 @@ public class BookingsController : BaseController
     [HttpGet("slot-status")]
     public async Task<IActionResult> GetSlotStatus([FromQuery] Guid poolId, [FromQuery] Guid laneId, [FromQuery] Guid slotId, [FromQuery] DateTime date)
         => Ok(await Mediator.Send(new GetSlotStatusQuery(poolId, laneId, slotId, date)));
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] DateTime? date)
+        => Ok(await Mediator.Send(new GetBookingsQuery(date)));
 }
