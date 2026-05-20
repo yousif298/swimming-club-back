@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SwimmingClub.Application.Common.Interfaces;
 using SwimmingClub.Domain.Entities;
 using SwimmingClub.Domain.Enums;
+using BookingTypeEntity = SwimmingClub.Domain.Entities.BookingType;
 
 namespace SwimmingClub.Infrastructure.Persistence;
 
@@ -16,6 +17,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Lane> Lanes => Set<Lane>();
     public DbSet<TimeSlot> TimeSlots => Set<TimeSlot>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingTypeEntity> BookingTypes => Set<BookingTypeEntity>();
+    public DbSet<BookingMember> BookingMembers => Set<BookingMember>();
+    public DbSet<BookingScheduleDay> BookingScheduleDays => Set<BookingScheduleDay>();
     public DbSet<ServicePricing> ServicePricings => Set<ServicePricing>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<User> Users => Set<User>();
@@ -64,14 +68,34 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.Property(t => t.EndTime).IsRequired();
         });
 
+        modelBuilder.Entity<BookingTypeEntity>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Name).HasMaxLength(100).IsRequired();
+        });
+
         modelBuilder.Entity<Booking>(e =>
         {
             e.HasKey(b => b.Id);
             e.HasOne(b => b.Customer).WithMany(c => c.Bookings).HasForeignKey(b => b.CustomerId);
             e.HasOne(b => b.Lane).WithMany(l => l.Bookings).HasForeignKey(b => b.LaneId);
             e.HasOne(b => b.Slot).WithMany(t => t.Bookings).HasForeignKey(b => b.SlotId);
+            e.HasOne(b => b.BookingType).WithMany().HasForeignKey(b => b.BookingTypeId);
             e.HasOne(b => b.CreatedBy).WithMany().HasForeignKey(b => b.CreatedByUserId);
             e.HasIndex(b => new { b.LaneId, b.SlotId, b.BookingDate }).IsUnique();
+        });
+
+        modelBuilder.Entity<BookingMember>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.HasOne(m => m.Booking).WithMany(b => b.Members).HasForeignKey(m => m.BookingId);
+            e.Property(m => m.FullName).HasMaxLength(200).IsRequired();
+        });
+
+        modelBuilder.Entity<BookingScheduleDay>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.HasOne(d => d.Booking).WithMany(b => b.ScheduleDays).HasForeignKey(d => d.BookingId);
         });
 
         modelBuilder.Entity<ServicePricing>(e =>
@@ -119,7 +143,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             new Activity { Id = swimmingId, Name = "سباحة", CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new Activity { Id = privateTrainingId, Name = "تدريب خاص", CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new Activity { Id = laneRentalId, Name = "تأجير حارة", CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-            new Activity { Id = schoolId, Name = "مدرسة سباحة", CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            new Activity { Id = schoolId, Name = "مدرسة سباحة", CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Activity { Id = Guid.NewGuid(), Name = "Lane Hire", CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         builder.Entity<ServicePricing>().HasData(
@@ -128,6 +153,18 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             new ServicePricing { Id = Guid.NewGuid(), ActivityId = schoolId, MinParticipants = 3, MaxParticipants = 3, Price = 250, PricingType = PricingType.PerSession, CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new ServicePricing { Id = Guid.NewGuid(), ActivityId = laneRentalId, MinParticipants = 1, MaxParticipants = 1, Price = 300, PricingType = PricingType.PerHour, CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
             new ServicePricing { Id = Guid.NewGuid(), ActivityId = laneRentalId, MinParticipants = 1, MaxParticipants = 1, Price = 550, PricingType = PricingType.PerHour, Duration = TimeSpan.FromHours(2), CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+        );
+
+        var laneHireId = Guid.NewGuid();
+        var lessonId = Guid.NewGuid();
+        var casualId = Guid.NewGuid();
+        var schoolId2 = Guid.NewGuid();
+
+        builder.Entity<BookingTypeEntity>().HasData(
+            new BookingTypeEntity { Id = laneHireId, Name = "Lane Hire", Description = "Single lane hire", DefaultPrice = 300, HasCapacity = false, IsActive = true, CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new BookingTypeEntity { Id = lessonId, Name = "Swimming Lesson", Description = "Private or group lesson", DefaultPrice = 20, HasCapacity = true, Capacity = 5, IsActive = true, CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new BookingTypeEntity { Id = casualId, Name = "Casual Swim", Description = "Single casual swim entry", DefaultPrice = 10, HasCapacity = false, IsActive = true, CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new BookingTypeEntity { Id = schoolId2, Name = "Swimming School", Description = "School swimming program with schedule", DefaultPrice = 100, HasCapacity = true, Capacity = 20, HasSchedule = true, IsActive = true, CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         for (int i = 6; i <= 21; i++)

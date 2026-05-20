@@ -12,6 +12,9 @@ public interface IApplicationDbContext
     DbSet<Lane> Lanes { get; }
     DbSet<TimeSlot> TimeSlots { get; }
     DbSet<Booking> Bookings { get; }
+    DbSet<BookingType> BookingTypes { get; }
+    DbSet<BookingMember> BookingMembers { get; }
+    DbSet<BookingScheduleDay> BookingScheduleDays { get; }
     DbSet<ServicePricing> ServicePricings { get; }
     DbSet<Payment> Payments { get; }
     DbSet<User> Users { get; }

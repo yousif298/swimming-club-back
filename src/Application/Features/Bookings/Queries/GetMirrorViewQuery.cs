@@ -49,15 +49,43 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
             .OrderBy(t => t.OrderIndex)
             .ToListAsync(ct);
 
-        var bookings = await _context.Bookings
+        var exactDateBookings = await _context.Bookings
             .Include(b => b.Customer)
+            .Include(b => b.BookingType)
             .Where(b => b.BookingDate == request.Date && b.Lane.PoolId == request.PoolId && !b.IsDeleted)
+            .ToListAsync(ct);
+
+        var scheduleBookings = await _context.Bookings
+            .Include(b => b.Customer)
+            .Include(b => b.BookingType)
+            .Include(b => b.ScheduleDays)
+            .Where(b => b.DurationMonths.HasValue && b.DurationMonths > 0
+                && b.ScheduleDays.Any()
+                && b.BookingDate <= request.Date
+                && b.BookingDate.AddMonths(b.DurationMonths.Value) > request.Date
+                && b.Lane.PoolId == request.PoolId
+                && !b.IsDeleted)
             .ToListAsync(ct);
 
         var lanes = pool.Lanes.Select(l => new LaneMirrorDto(l.Id, l.LaneNumber)).ToList();
         var slotDtos = timeSlots.Select(t => new TimeSlotMirrorDto(t.Id, t.DisplayTime, t.OrderIndex)).ToList();
 
-        var bookingMap = bookings.ToDictionary(b => (b.LaneId, b.SlotId));
+        var bookingMap = exactDateBookings.ToDictionary(b => (b.LaneId, b.SlotId));
+
+        foreach (var booking in scheduleBookings)
+        {
+            var matchingDay = booking.ScheduleDays
+                .FirstOrDefault(sd => sd.DayOfWeek == request.Date.DayOfWeek);
+            if (matchingDay == null) continue;
+
+            var matchingSlot = timeSlots
+                .FirstOrDefault(ts => ts.StartTime == matchingDay.StartTime);
+            if (matchingSlot == null) continue;
+
+            var key = (booking.LaneId, matchingSlot.Id);
+            bookingMap[key] = booking;
+        }
+
         var slots = new List<MirrorSlotDto>();
         foreach (var lane in pool.Lanes)
         {
@@ -69,7 +97,7 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
                     slots.Add(new MirrorSlotDto(
                         lane.Id, slot.Id,
                         booking.Id, booking.CustomerId,
-                        booking.Customer.FullName, booking.BookingType.ToString(),
+                        booking.Customer.FullName, booking.BookingType.Name,
                         booking.PaymentStatus == PaymentStatus.Pending ? "pending" : "booked"
                     ));
                 }

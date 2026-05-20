@@ -24,4 +24,12 @@ public class BookingsController : BaseController
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] DateTime? date)
         => Ok(await Mediator.Send(new GetBookingsQuery(date)));
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBookingCommand command)
+        => HandleResult(await Mediator.Send(command with { Id = id }));
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Cancel(Guid id)
+        => HandleResult(await Mediator.Send(new CancelBookingCommand(id)));
 }

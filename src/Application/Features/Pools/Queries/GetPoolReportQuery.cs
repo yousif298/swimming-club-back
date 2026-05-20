@@ -41,6 +41,7 @@ public class GetPoolReportQueryHandler : IRequestHandler<GetPoolReportQuery, Poo
             .Include(b => b.Customer)
             .Include(b => b.Lane)
             .Include(b => b.Slot)
+            .Include(b => b.BookingType)
             .Where(b => b.Lane.PoolId == request.PoolId && b.BookingDate >= from && b.BookingDate <= to && !b.IsDeleted)
             .OrderByDescending(b => b.BookingDate)
             .ToListAsync(ct);
@@ -50,7 +51,7 @@ public class GetPoolReportQueryHandler : IRequestHandler<GetPoolReportQuery, Poo
 
         var dtos = bookings.Select(b => new PoolReportBookingDto(
             b.BookingDate, b.Customer.FullName, b.Lane.LaneNumber,
-            b.Slot.DisplayTime, b.BookingType.ToString(),
+            b.Slot.DisplayTime, b.BookingType.Name,
             b.Price, b.PaymentStatus.ToString()
         )).ToList();
 

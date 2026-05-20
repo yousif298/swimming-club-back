@@ -18,11 +18,12 @@ public class GetCustomerBookingsQueryHandler : IRequestHandler<GetCustomerBookin
             .Include(b => b.Customer)
             .Include(b => b.Lane)
             .Include(b => b.Slot)
+            .Include(b => b.BookingType)
             .Where(b => b.CustomerId == request.CustomerId && !b.IsDeleted)
             .OrderByDescending(b => b.BookingDate)
             .Select(b => new BookingListDto(
                 b.Id, b.Customer.FullName, b.Lane.LaneNumber,
-                b.Slot.DisplayTime, b.BookingDate, b.BookingType.ToString(),
+                b.Slot.DisplayTime, b.BookingDate, b.BookingType.Name,
                 b.Price, b.PaymentStatus.ToString()
             ))
             .ToListAsync(ct);

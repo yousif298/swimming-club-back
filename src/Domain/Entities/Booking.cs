@@ -11,10 +11,21 @@ public class Booking : BaseEntity
     public Guid SlotId { get; set; }
     public TimeSlot Slot { get; set; } = null!;
     public DateTime BookingDate { get; set; }
-    public BookingType BookingType { get; set; }
+
+    public Guid BookingTypeId { get; set; }
+    public BookingType BookingType { get; set; } = null!;
+
     public double Price { get; set; }
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
+
     public Guid? CreatedByUserId { get; set; }
     public User? CreatedBy { get; set; }
-    public int? ParticipantsCount { get; set; } = 1;
+
+    public string? Title { get; set; }
+    public string? CoachName { get; set; }
+    public int? DurationMonths { get; set; }
+    public int? DaysPerMonth { get; set; }
+
+    public List<BookingMember> Members { get; set; } = new();
+    public List<BookingScheduleDay> ScheduleDays { get; set; } = new();
 }

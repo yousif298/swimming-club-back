@@ -35,14 +35,34 @@ public class GetSlotStatusQueryHandler : IRequestHandler<GetSlotStatusQuery, Slo
     {
         var booking = await _context.Bookings
             .Include(b => b.Customer)
-            .Where(b => b.LaneId == request.LaneId && b.SlotId == request.SlotId && b.BookingDate == request.Date && !b.IsDeleted)
+            .Include(b => b.BookingType)
+            .Include(b => b.ScheduleDays)
+            .Where(b => b.LaneId == request.LaneId && !b.IsDeleted
+                && (b.BookingDate == request.Date
+                    || (b.DurationMonths.HasValue && b.DurationMonths > 0
+                        && b.ScheduleDays.Any()
+                        && b.BookingDate <= request.Date
+                        && b.BookingDate.AddMonths(b.DurationMonths.Value) > request.Date)))
             .FirstOrDefaultAsync(ct);
 
         if (booking == null) return new SlotStatusDto(false, null);
 
+        // For schedule bookings, check if this slot matches the schedule's start time
+        if (booking.DurationMonths.HasValue && booking.DurationMonths > 0 && booking.ScheduleDays.Any())
+        {
+            var matchingDay = booking.ScheduleDays
+                .FirstOrDefault(sd => sd.DayOfWeek == request.Date.DayOfWeek);
+            if (matchingDay == null) return new SlotStatusDto(false, null);
+
+            var timeSlot = await _context.TimeSlots
+                .FirstOrDefaultAsync(ts => ts.Id == request.SlotId, ct);
+            if (timeSlot == null || timeSlot.StartTime != matchingDay.StartTime)
+                return new SlotStatusDto(false, null);
+        }
+
         return new SlotStatusDto(true, new BookingDetailDto(
             booking.Id, booking.CustomerId, booking.Customer.FullName,
-            booking.BookingType.ToString(), booking.Price, booking.PaymentStatus.ToString()
+            booking.BookingType.Name, booking.Price, booking.PaymentStatus.ToString()
         ));
     }
 }

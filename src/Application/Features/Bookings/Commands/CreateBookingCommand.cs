@@ -4,28 +4,44 @@ using SwimmingClub.Application.Common.Interfaces;
 using SwimmingClub.Application.Common.Models;
 using SwimmingClub.Domain.Entities;
 using SwimmingClub.Domain.Enums;
+using BookingTypeEntity = SwimmingClub.Domain.Entities.BookingType;
 
 namespace SwimmingClub.Application.Features.Bookings.Commands;
+
+public record CreateBookingMemberDto(string FullName, int? Age, string? Phone);
+public record CreateBookingScheduleDayDto(int DayOfWeek, string StartTime, string EndTime);
 
 public record CreateBookingCommand(
     Guid CustomerId,
     Guid LaneId,
     Guid SlotId,
     DateTime BookingDate,
-    BookingType BookingType,
+    Guid BookingTypeId,
     double Price,
-    PaymentStatus PaymentStatus,
+    string PaymentStatus,
     Guid? CreatedByUserId,
-    int? ParticipantsCount = 1
+    string? Title,
+    string? CoachName,
+    int? DurationMonths,
+    int? DaysPerMonth,
+    List<CreateBookingMemberDto>? Members,
+    List<CreateBookingScheduleDayDto>? ScheduleDays
 ) : IRequest<Result<BookingDto>>;
 
 public record BookingDto(
     Guid Id, Guid CustomerId, string CustomerName,
     Guid LaneId, int LaneNumber,
     Guid SlotId, string SlotTime,
-    DateTime BookingDate, string BookingType,
-    double Price, string PaymentStatus
+    DateTime BookingDate, string BookingTypeName,
+    double Price, string PaymentStatus,
+    string? Title, string? CoachName,
+    int? DurationMonths, int? DaysPerMonth,
+    List<BookingMemberDto>? Members,
+    List<BookingScheduleDayDto>? ScheduleDays
 );
+
+public record BookingMemberDto(Guid Id, string FullName, int? Age, string? Phone);
+public record BookingScheduleDayDto(Guid Id, int DayOfWeek, string StartTime, string EndTime);
 
 public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, Result<BookingDto>>
 {
@@ -44,37 +60,83 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         if (exists)
             return Result<BookingDto>.Failure("This slot is already booked", "SLOT_BOOKED");
 
+        var bookingType = await _context.BookingTypes.FindAsync(new object[] { request.BookingTypeId }, ct);
+        if (bookingType is null)
+            return Result<BookingDto>.Failure("Booking type not found");
+
+        var paymentStatus = Enum.Parse<PaymentStatus>(request.PaymentStatus);
+
         var booking = new Booking
         {
             CustomerId = request.CustomerId,
             LaneId = request.LaneId,
             SlotId = request.SlotId,
             BookingDate = request.BookingDate,
-            BookingType = request.BookingType,
+            BookingTypeId = request.BookingTypeId,
             Price = request.Price,
-            PaymentStatus = request.PaymentStatus,
+            PaymentStatus = paymentStatus,
             CreatedByUserId = request.CreatedByUserId,
-            ParticipantsCount = request.ParticipantsCount
+            Title = request.Title,
+            CoachName = request.CoachName,
+            DurationMonths = request.DurationMonths,
+            DaysPerMonth = request.DaysPerMonth,
         };
+
+        if (request.Members != null)
+        {
+            foreach (var m in request.Members)
+            {
+                booking.Members.Add(new BookingMember
+                {
+                    BookingId = booking.Id,
+                    FullName = m.FullName,
+                    Age = m.Age,
+                    Phone = m.Phone,
+                });
+            }
+        }
+
+        if (request.ScheduleDays != null)
+        {
+            foreach (var d in request.ScheduleDays)
+            {
+                booking.ScheduleDays.Add(new BookingScheduleDay
+                {
+                    BookingId = booking.Id,
+                    DayOfWeek = (DayOfWeek)d.DayOfWeek,
+                    StartTime = TimeSpan.Parse(d.StartTime),
+                    EndTime = TimeSpan.Parse(d.EndTime),
+                });
+            }
+        }
 
         _context.Bookings.Add(booking);
         await _context.SaveChangesAsync(ct);
 
-        var dto = await MapToDto(booking, ct);
-        return Result<BookingDto>.Success(dto);
+        // Reload with navigation properties
+        var saved = await _context.Bookings
+            .Include(b => b.Customer)
+            .Include(b => b.Lane)
+            .Include(b => b.Slot)
+            .Include(b => b.Members)
+            .Include(b => b.ScheduleDays)
+            .FirstAsync(b => b.Id == booking.Id, ct);
+
+        return Result<BookingDto>.Success(MapToDto(saved, bookingType));
     }
 
-    private async Task<BookingDto> MapToDto(Booking booking, CancellationToken ct)
+    private static BookingDto MapToDto(Booking booking, BookingTypeEntity bookingType)
     {
-        var customer = await _context.Customers.FindAsync(new object[] { booking.CustomerId }, ct);
-        var lane = await _context.Lanes.FindAsync(new object[] { booking.LaneId }, ct);
-        var slot = await _context.TimeSlots.FindAsync(new object[] { booking.SlotId }, ct);
         return new BookingDto(
-            booking.Id, booking.CustomerId, customer?.FullName ?? "",
-            booking.LaneId, lane?.LaneNumber ?? 0,
-            booking.SlotId, slot?.DisplayTime ?? "",
-            booking.BookingDate, booking.BookingType.ToString(),
-            booking.Price, booking.PaymentStatus.ToString()
+            booking.Id, booking.CustomerId, booking.Customer?.FullName ?? "",
+            booking.LaneId, booking.Lane?.LaneNumber ?? 0,
+            booking.SlotId, booking.Slot?.DisplayTime ?? "",
+            booking.BookingDate, bookingType.Name,
+            booking.Price, booking.PaymentStatus.ToString(),
+            booking.Title, booking.CoachName,
+            booking.DurationMonths, booking.DaysPerMonth,
+            booking.Members.Select(m => new BookingMemberDto(m.Id, m.FullName, m.Age, m.Phone)).ToList(),
+            booking.ScheduleDays.Select(d => new BookingScheduleDayDto(d.Id, (int)d.DayOfWeek, d.StartTime.ToString(), d.EndTime.ToString())).ToList()
         );
     }
 }

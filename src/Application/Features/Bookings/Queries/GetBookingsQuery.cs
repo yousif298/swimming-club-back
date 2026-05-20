@@ -24,6 +24,7 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, List<Bo
             .Include(b => b.Customer)
             .Include(b => b.Lane)
             .Include(b => b.Slot)
+            .Include(b => b.BookingType)
             .Where(b => !b.IsDeleted);
 
         if (request.Date.HasValue)
@@ -34,7 +35,7 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, List<Bo
             .ThenBy(b => b.Lane.LaneNumber)
             .Select(b => new BookingListDto(
                 b.Id, b.Customer.FullName, b.Lane.LaneNumber,
-                b.Slot.DisplayTime, b.BookingDate, b.BookingType.ToString(),
+                b.Slot.DisplayTime, b.BookingDate, b.BookingType.Name,
                 b.Price, b.PaymentStatus.ToString()
             ))
             .ToListAsync(ct);
