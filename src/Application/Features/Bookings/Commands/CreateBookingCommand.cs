@@ -131,7 +131,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 booking.ScheduleDays.Add(new BookingScheduleDay
                 {
                     BookingId = booking.Id,
-                    DayOfWeek = (DayOfWeek)d.DayOfWeek,
+                    // Frontend: Mon=0..Sun=6 → C# DayOfWeek: Sun=0..Sat=6
+                    DayOfWeek = (DayOfWeek)((d.DayOfWeek + 1) % 7),
                 });
             }
         }
@@ -170,7 +171,11 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             booking.Color,
             booking.DurationMonths, booking.DaysPerMonth,
             booking.Members.Select(m => new BookingMemberDto(m.Id, m.FullName, m.Age, m.Phone, m.MemberId)).ToList(),
-            booking.ScheduleDays.Select(d => new BookingScheduleDayDto(d.Id, (int)d.DayOfWeek)).ToList()
+            booking.ScheduleDays.Select(d => new BookingScheduleDayDto(
+                d.Id,
+                // C# DayOfWeek: Sun=0..Sat=6 → Frontend: Mon=0..Sun=6
+                ((int)d.DayOfWeek + 6) % 7
+            )).ToList()
         );
     }
 }
