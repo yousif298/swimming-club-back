@@ -24,7 +24,7 @@ public class GetCustomerBookingsQueryHandler : IRequestHandler<GetCustomerBookin
             .Select(b => new BookingListDto(
                 b.Id, b.Customer.FullName, b.Lane.LaneNumber,
                 b.Slot.DisplayTime, b.BookingDate, b.BookingType.Name,
-                b.Price, b.PaymentStatus.ToString()
+                b.Price, b.PaymentStatus.ToString(), b.Color ?? ""
             ))
             .ToListAsync(ct);
     }

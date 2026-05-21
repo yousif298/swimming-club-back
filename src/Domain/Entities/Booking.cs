@@ -25,7 +25,9 @@ public class Booking : BaseEntity
     public string? CoachName { get; set; }
     public int? DurationMonths { get; set; }
     public int? DaysPerMonth { get; set; }
+    public string? Color { get; set; }
 
+    public List<BookingSlot> BookingSlots { get; set; } = new();
     public List<BookingMember> Members { get; set; } = new();
     public List<BookingScheduleDay> ScheduleDays { get; set; } = new();
 }

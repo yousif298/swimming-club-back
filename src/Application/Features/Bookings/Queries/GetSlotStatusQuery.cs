@@ -33,23 +33,34 @@ public class GetSlotStatusQueryHandler : IRequestHandler<GetSlotStatusQuery, Slo
 
     public async Task<SlotStatusDto> Handle(GetSlotStatusQuery request, CancellationToken ct)
     {
+        // Check primary SlotId match
         var booking = await _context.Bookings
             .Include(b => b.Customer)
             .Include(b => b.BookingType)
             .Include(b => b.ScheduleDays)
+            .Include(b => b.BookingSlots)
             .Where(b => b.LaneId == request.LaneId && !b.IsDeleted
-                && (b.BookingDate == request.Date
-                    || (b.DurationMonths.HasValue && b.DurationMonths > 0
-                        && b.ScheduleDays.Any()
-                        && b.BookingDate <= request.Date
-                        && b.BookingDate.AddMonths(b.DurationMonths.Value) > request.Date)))
+                && b.BookingDate == request.Date
+                && (b.SlotId == request.SlotId || b.BookingSlots.Any(bs => bs.SlotId == request.SlotId)))
             .FirstOrDefaultAsync(ct);
 
-        if (booking == null) return new SlotStatusDto(false, null);
-
-        // For schedule bookings, check if this slot matches the schedule's start time
-        if (booking.DurationMonths.HasValue && booking.DurationMonths > 0 && booking.ScheduleDays.Any())
+        // Check schedule-based bookings
+        if (booking == null)
         {
+            booking = await _context.Bookings
+                .Include(b => b.Customer)
+                .Include(b => b.BookingType)
+                .Include(b => b.ScheduleDays)
+                .Include(b => b.BookingSlots)
+                .Where(b => b.LaneId == request.LaneId && !b.IsDeleted
+                    && b.DurationMonths.HasValue && b.DurationMonths > 0
+                    && b.ScheduleDays.Any()
+                    && b.BookingDate <= request.Date
+                    && b.BookingDate.AddMonths(b.DurationMonths.Value) > request.Date)
+                .FirstOrDefaultAsync(ct);
+
+            if (booking == null) return new SlotStatusDto(false, null);
+
             var matchingDay = booking.ScheduleDays
                 .FirstOrDefault(sd => sd.DayOfWeek == request.Date.DayOfWeek);
             if (matchingDay == null) return new SlotStatusDto(false, null);

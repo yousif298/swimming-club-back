@@ -18,8 +18,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<TimeSlot> TimeSlots => Set<TimeSlot>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingTypeEntity> BookingTypes => Set<BookingTypeEntity>();
+    public DbSet<BookingSlot> BookingSlots => Set<BookingSlot>();
     public DbSet<BookingMember> BookingMembers => Set<BookingMember>();
     public DbSet<BookingScheduleDay> BookingScheduleDays => Set<BookingScheduleDay>();
+    public DbSet<Domain.Entities.Member> Members => Set<Domain.Entities.Member>();
     public DbSet<ServicePricing> ServicePricings => Set<ServicePricing>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<User> Users => Set<User>();
@@ -82,14 +84,28 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.HasOne(b => b.Slot).WithMany(t => t.Bookings).HasForeignKey(b => b.SlotId);
             e.HasOne(b => b.BookingType).WithMany().HasForeignKey(b => b.BookingTypeId);
             e.HasOne(b => b.CreatedBy).WithMany().HasForeignKey(b => b.CreatedByUserId);
-            e.HasIndex(b => new { b.LaneId, b.SlotId, b.BookingDate }).IsUnique();
+        });
+
+        modelBuilder.Entity<BookingSlot>(e =>
+        {
+            e.HasKey(bs => bs.Id);
+            e.HasOne(bs => bs.Booking).WithMany(b => b.BookingSlots).HasForeignKey(bs => bs.BookingId);
+            e.HasOne(bs => bs.Slot).WithMany().HasForeignKey(bs => bs.SlotId);
         });
 
         modelBuilder.Entity<BookingMember>(e =>
         {
             e.HasKey(m => m.Id);
             e.HasOne(m => m.Booking).WithMany(b => b.Members).HasForeignKey(m => m.BookingId);
+            e.HasOne(m => m.Member).WithMany(mem => mem.BookingMemberships).HasForeignKey(m => m.MemberId);
             e.Property(m => m.FullName).HasMaxLength(200).IsRequired();
+        });
+
+        modelBuilder.Entity<Domain.Entities.Member>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.Property(m => m.FullName).HasMaxLength(200).IsRequired();
+            e.HasOne(m => m.Customer).WithMany().HasForeignKey(m => m.CustomerId);
         });
 
         modelBuilder.Entity<BookingScheduleDay>(e =>

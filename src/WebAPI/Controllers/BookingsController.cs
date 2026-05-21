@@ -4,6 +4,8 @@ using SwimmingClub.Application.Features.Bookings.Commands;
 using SwimmingClub.Application.Features.Bookings.Queries;
 using SwimmingClub.WebAPI.Controllers;
 
+using SwimmingClub.Application.Features.Members.Commands;
+
 namespace SwimmingClub.WebAPI.Controllers;
 
 [Authorize]
@@ -32,4 +34,8 @@ public class BookingsController : BaseController
     [HttpDelete("{id}")]
     public async Task<IActionResult> Cancel(Guid id)
         => HandleResult(await Mediator.Send(new CancelBookingCommand(id)));
+
+    [HttpPost("{id}/members")]
+    public async Task<IActionResult> AddMembers(Guid id, [FromBody] AddBookingMembersCommand command)
+        => HandleResult(await Mediator.Send(command with { BookingId = id }));
 }

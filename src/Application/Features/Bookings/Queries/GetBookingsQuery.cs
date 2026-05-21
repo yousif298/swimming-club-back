@@ -9,7 +9,7 @@ public record GetBookingsQuery(DateTime? Date) : IRequest<List<BookingListDto>>;
 public record BookingListDto(
     Guid Id, string CustomerName, int LaneNumber,
     string SlotTime, DateTime BookingDate, string BookingType,
-    double Price, string PaymentStatus
+    double Price, string PaymentStatus, string? Color
 );
 
 public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, List<BookingListDto>>
@@ -36,7 +36,7 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, List<Bo
             .Select(b => new BookingListDto(
                 b.Id, b.Customer.FullName, b.Lane.LaneNumber,
                 b.Slot.DisplayTime, b.BookingDate, b.BookingType.Name,
-                b.Price, b.PaymentStatus.ToString()
+                b.Price, b.PaymentStatus.ToString(), b.Color ?? ""
             ))
             .ToListAsync(ct);
     }
