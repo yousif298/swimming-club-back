@@ -9,7 +9,7 @@ using BookingTypeEntity = SwimmingClub.Domain.Entities.BookingType;
 namespace SwimmingClub.Application.Features.Bookings.Commands;
 
 public record CreateBookingMemberDto(string FullName, int? Age, string? Phone, Guid? MemberId);
-public record CreateBookingScheduleDayDto(int DayOfWeek, string StartTime, string EndTime);
+public record CreateBookingScheduleDayDto(int DayOfWeek);
 
 public record CreateBookingCommand(
     Guid CustomerId,
@@ -44,7 +44,7 @@ public record BookingDto(
 );
 
 public record BookingMemberDto(Guid Id, string FullName, int? Age, string? Phone, Guid? MemberId);
-public record BookingScheduleDayDto(Guid Id, int DayOfWeek, string StartTime, string EndTime);
+public record BookingScheduleDayDto(Guid Id, int DayOfWeek);
 
 public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, Result<BookingDto>>
 {
@@ -132,8 +132,6 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 {
                     BookingId = booking.Id,
                     DayOfWeek = (DayOfWeek)d.DayOfWeek,
-                    StartTime = TimeSpan.Parse(d.StartTime),
-                    EndTime = TimeSpan.Parse(d.EndTime),
                 });
             }
         }
@@ -172,7 +170,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             booking.Color,
             booking.DurationMonths, booking.DaysPerMonth,
             booking.Members.Select(m => new BookingMemberDto(m.Id, m.FullName, m.Age, m.Phone, m.MemberId)).ToList(),
-            booking.ScheduleDays.Select(d => new BookingScheduleDayDto(d.Id, (int)d.DayOfWeek, d.StartTime.ToString(), d.EndTime.ToString())).ToList()
+            booking.ScheduleDays.Select(d => new BookingScheduleDayDto(d.Id, (int)d.DayOfWeek)).ToList()
         );
     }
 }

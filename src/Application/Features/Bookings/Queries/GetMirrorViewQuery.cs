@@ -84,15 +84,10 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
 
         foreach (var b in scheduleBookings)
         {
-            var matchingDay = b.ScheduleDays
-                .FirstOrDefault(sd => sd.DayOfWeek == request.Date.DayOfWeek);
-            if (matchingDay == null) continue;
+            if (!b.ScheduleDays.Any(sd => sd.DayOfWeek == request.Date.DayOfWeek))
+                continue;
 
-            var matchingSlot = timeSlots
-                .FirstOrDefault(ts => ts.StartTime == matchingDay.StartTime);
-            if (matchingSlot == null) continue;
-
-            bookingMap[(b.LaneId, matchingSlot.Id)] = b;
+            bookingMap[(b.LaneId, b.SlotId)] = b;
             foreach (var bs in b.BookingSlots)
                 bookingMap[(b.LaneId, bs.SlotId)] = b;
         }

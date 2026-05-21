@@ -61,13 +61,10 @@ public class GetSlotStatusQueryHandler : IRequestHandler<GetSlotStatusQuery, Slo
 
             if (booking == null) return new SlotStatusDto(false, null);
 
-            var matchingDay = booking.ScheduleDays
-                .FirstOrDefault(sd => sd.DayOfWeek == request.Date.DayOfWeek);
-            if (matchingDay == null) return new SlotStatusDto(false, null);
+            if (!booking.ScheduleDays.Any(sd => sd.DayOfWeek == request.Date.DayOfWeek))
+                return new SlotStatusDto(false, null);
 
-            var timeSlot = await _context.TimeSlots
-                .FirstOrDefaultAsync(ts => ts.Id == request.SlotId, ct);
-            if (timeSlot == null || timeSlot.StartTime != matchingDay.StartTime)
+            if (booking.SlotId != request.SlotId && !booking.BookingSlots.Any(bs => bs.SlotId == request.SlotId))
                 return new SlotStatusDto(false, null);
         }
 
