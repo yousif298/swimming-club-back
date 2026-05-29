@@ -21,6 +21,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BookingSlot> BookingSlots => Set<BookingSlot>();
     public DbSet<BookingMember> BookingMembers => Set<BookingMember>();
     public DbSet<BookingScheduleDay> BookingScheduleDays => Set<BookingScheduleDay>();
+    public DbSet<BookingLane> BookingLanes => Set<BookingLane>();
+    public DbSet<CategorySchedule> CategorySchedules => Set<CategorySchedule>();
     public DbSet<Domain.Entities.Member> Members => Set<Domain.Entities.Member>();
     public DbSet<ServicePricing> ServicePricings => Set<ServicePricing>();
     public DbSet<Payment> Payments => Set<Payment>();
@@ -68,6 +70,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.HasKey(t => t.Id);
             e.Property(t => t.StartTime).IsRequired();
             e.Property(t => t.EndTime).IsRequired();
+            e.HasOne(t => t.BookingType).WithMany().HasForeignKey(t => t.BookingTypeId);
         });
 
         modelBuilder.Entity<BookingTypeEntity>(e =>
@@ -91,6 +94,20 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.HasKey(bs => bs.Id);
             e.HasOne(bs => bs.Booking).WithMany(b => b.BookingSlots).HasForeignKey(bs => bs.BookingId);
             e.HasOne(bs => bs.Slot).WithMany().HasForeignKey(bs => bs.SlotId);
+        });
+
+        modelBuilder.Entity<BookingLane>(e =>
+        {
+            e.HasKey(bl => bl.Id);
+            e.HasOne(bl => bl.Booking).WithMany(b => b.BookingLanes).HasForeignKey(bl => bl.BookingId);
+            e.HasOne(bl => bl.Lane).WithMany().HasForeignKey(bl => bl.LaneId);
+        });
+
+        modelBuilder.Entity<CategorySchedule>(e =>
+        {
+            e.HasKey(cs => cs.Id);
+            e.HasOne(cs => cs.BookingType).WithMany().HasForeignKey(cs => cs.BookingTypeId);
+            e.HasIndex(cs => new { cs.BookingTypeId, cs.DayOfWeek }).IsUnique();
         });
 
         modelBuilder.Entity<BookingMember>(e =>

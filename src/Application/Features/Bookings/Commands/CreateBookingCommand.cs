@@ -10,6 +10,7 @@ namespace SwimmingClub.Application.Features.Bookings.Commands;
 
 public record CreateBookingMemberDto(string FullName, int? Age, string? Phone, Guid? MemberId);
 public record CreateBookingScheduleDayDto(int DayOfWeek);
+public record CreateBookingLaneDto(Guid LaneId);
 
 public record CreateBookingCommand(
     Guid CustomerId,
@@ -26,8 +27,11 @@ public record CreateBookingCommand(
     int? DurationMonths,
     int? DaysPerMonth,
     List<CreateBookingMemberDto>? Members,
-    List<CreateBookingScheduleDayDto>? ScheduleDays
+    List<CreateBookingScheduleDayDto>? ScheduleDays,
+    List<CreateBookingLaneDto>? AdditionalLanes
 ) : IRequest<Result<BookingDto>>;
+
+public record BookingLaneDto(Guid Id, Guid LaneId, int LaneNumber);
 
 public record BookingDto(
     Guid Id, Guid CustomerId, string CustomerName,
@@ -40,7 +44,8 @@ public record BookingDto(
     string? Color,
     int? DurationMonths, int? DaysPerMonth,
     List<BookingMemberDto>? Members,
-    List<BookingScheduleDayDto>? ScheduleDays
+    List<BookingScheduleDayDto>? ScheduleDays,
+    List<BookingLaneDto>? Lanes
 );
 
 public record BookingMemberDto(Guid Id, string FullName, int? Age, string? Phone, Guid? MemberId);
@@ -49,57 +54,95 @@ public record BookingScheduleDayDto(Guid Id, int DayOfWeek);
 public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, Result<BookingDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IColorService _colorService;
 
-    public CreateBookingCommandHandler(IApplicationDbContext context) => _context = context;
+    public CreateBookingCommandHandler(IApplicationDbContext context, IColorService colorService)
+    {
+        _context = context;
+        _colorService = colorService;
+    }
 
     public async Task<Result<BookingDto>> Handle(CreateBookingCommand request, CancellationToken ct)
     {
         if (request.SlotIds == null || request.SlotIds.Count == 0)
             return Result<BookingDto>.Failure("At least one time slot must be selected");
 
-        // Check all slots are available
+        var allLaneIds = new List<Guid> { request.LaneId };
+        if (request.AdditionalLanes != null)
+            allLaneIds.AddRange(request.AdditionalLanes.Select(l => l.LaneId));
+
         var firstSlotId = request.SlotIds[0];
 
-        var alreadyBooked = await _context.Bookings
-            .Where(b => b.BookingDate == request.BookingDate && b.LaneId == request.LaneId && !b.IsDeleted)
-            .SelectMany(b => b.BookingSlots.Select(bs => bs.SlotId))
-            .ToListAsync(ct);
+        var bookingDateStart = request.BookingDate.Date;
+        var bookingDateEnd = bookingDateStart.AddDays(1);
 
-        // Also check the primary SlotId for backward compat
-        var primaryBooked = await _context.Bookings
-            .Where(b => b.BookingDate == request.BookingDate && b.LaneId == request.LaneId && !b.IsDeleted)
-            .Select(b => b.SlotId)
-            .ToListAsync(ct);
+        foreach (var laneId in allLaneIds)
+        {
+            var laneBookedSlots = await _context.Bookings
+                .Where(b => b.BookingDate >= bookingDateStart && b.BookingDate < bookingDateEnd && b.LaneId == laneId && !b.IsDeleted)
+                .SelectMany(b => b.BookingSlots.Select(bs => bs.SlotId))
+                .ToListAsync(ct);
 
-        var allBookedSlots = alreadyBooked.Concat(primaryBooked).ToHashSet();
-        var conflict = request.SlotIds.FirstOrDefault(s => allBookedSlots.Contains(s));
-        if (conflict != Guid.Empty)
-            return Result<BookingDto>.Failure("One of the selected slots is already booked", "SLOT_BOOKED");
+            var lanePrimarySlots = await _context.Bookings
+                .Where(b => b.BookingDate >= bookingDateStart && b.BookingDate < bookingDateEnd && b.LaneId == laneId && !b.IsDeleted)
+                .Select(b => b.SlotId)
+                .ToListAsync(ct);
+
+            var laneBookingLaneSlots = await _context.BookingLanes
+                .Where(bl => bl.LaneId == laneId && !bl.IsDeleted)
+                .Join(_context.Bookings.Where(b => b.BookingDate >= bookingDateStart && b.BookingDate < bookingDateEnd && !b.IsDeleted),
+                    bl => bl.BookingId, b => b.Id,
+                    (bl, b) => b)
+                .SelectMany(b => b.BookingSlots.Select(bs => bs.SlotId))
+                .ToListAsync(ct);
+
+            var allLaneBookedSlots = laneBookedSlots
+                .Concat(lanePrimarySlots)
+                .Concat(laneBookingLaneSlots)
+                .ToHashSet();
+
+            var conflict = request.SlotIds.FirstOrDefault(s => allLaneBookedSlots.Contains(s));
+            if (conflict != Guid.Empty)
+                return Result<BookingDto>.Failure($"Lane {laneId} has a conflict on slot {conflict}", "SLOT_BOOKED");
+        }
 
         var bookingType = await _context.BookingTypes.FindAsync(new object[] { request.BookingTypeId }, ct);
         if (bookingType is null)
             return Result<BookingDto>.Failure("Booking type not found");
 
         var paymentStatus = Enum.Parse<PaymentStatus>(request.PaymentStatus);
+        string? color;
+        if (request.Color != null)
+        {
+            color = request.Color;
+        }
+        else
+        {
+            var usedColors = await _context.Bookings
+                .Where(b => !b.IsDeleted && b.Color != null && b.Color != "")
+                .Select(b => b.Color!)
+                .Distinct()
+                .ToListAsync(ct);
+            color = _colorService.GetUniqueColor(usedColors);
+        }
 
         var booking = new Booking
         {
             CustomerId = request.CustomerId,
             LaneId = request.LaneId,
             SlotId = firstSlotId,
-            BookingDate = request.BookingDate,
+            BookingDate = request.BookingDate.Date,
             BookingTypeId = request.BookingTypeId,
             Price = request.Price,
             PaymentStatus = paymentStatus,
             CreatedByUserId = request.CreatedByUserId,
             Title = request.Title,
             CoachName = request.CoachName,
-            Color = request.Color,
+            Color = color,
             DurationMonths = request.DurationMonths,
             DaysPerMonth = request.DaysPerMonth,
         };
 
-        // Add additional slots (skip first as it's already the primary)
         foreach (var slotId in request.SlotIds.Skip(1))
         {
             booking.BookingSlots.Add(new BookingSlot
@@ -107,6 +150,18 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 BookingId = booking.Id,
                 SlotId = slotId,
             });
+        }
+
+        if (request.AdditionalLanes != null)
+        {
+            foreach (var lane in request.AdditionalLanes)
+            {
+                booking.BookingLanes.Add(new BookingLane
+                {
+                    BookingId = booking.Id,
+                    LaneId = lane.LaneId,
+                });
+            }
         }
 
         if (request.Members != null)
@@ -131,8 +186,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 booking.ScheduleDays.Add(new BookingScheduleDay
                 {
                     BookingId = booking.Id,
-                    // Frontend: Mon=0..Sun=6 → C# DayOfWeek: Sun=0..Sat=6
-                    DayOfWeek = (DayOfWeek)((d.DayOfWeek + 1) % 7),
+                    DayOfWeek = (DayOfWeek)d.DayOfWeek,
                 });
             }
         }
@@ -147,6 +201,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             .Include(b => b.BookingSlots).ThenInclude(bs => bs.Slot)
             .Include(b => b.Members)
             .Include(b => b.ScheduleDays)
+            .Include(b => b.BookingLanes).ThenInclude(bl => bl.Lane)
             .FirstAsync(b => b.Id == booking.Id, ct);
 
         return Result<BookingDto>.Success(MapToDto(saved, bookingType));
@@ -159,6 +214,14 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             .Where(s => !string.IsNullOrEmpty(s))
             .Distinct()
             .ToList();
+
+        var lanes = new List<BookingLaneDto>
+        {
+            new(Guid.Empty, booking.LaneId, booking.Lane?.LaneNumber ?? 0)
+        };
+        lanes.AddRange(booking.BookingLanes
+            .Where(bl => bl.Lane != null)
+            .Select(bl => new BookingLaneDto(bl.Id, bl.LaneId, bl.Lane.LaneNumber)));
 
         return new BookingDto(
             booking.Id, booking.CustomerId, booking.Customer?.FullName ?? "",
@@ -173,9 +236,9 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             booking.Members.Select(m => new BookingMemberDto(m.Id, m.FullName, m.Age, m.Phone, m.MemberId)).ToList(),
             booking.ScheduleDays.Select(d => new BookingScheduleDayDto(
                 d.Id,
-                // C# DayOfWeek: Sun=0..Sat=6 → Frontend: Mon=0..Sun=6
-                ((int)d.DayOfWeek + 6) % 7
-            )).ToList()
+                (int)d.DayOfWeek
+            )).ToList(),
+            lanes
         );
     }
 }

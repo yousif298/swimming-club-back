@@ -30,4 +30,5 @@ public class Booking : BaseEntity
     public List<BookingSlot> BookingSlots { get; set; } = new();
     public List<BookingMember> Members { get; set; } = new();
     public List<BookingScheduleDay> ScheduleDays { get; set; } = new();
+    public List<BookingLane> BookingLanes { get; set; } = new();
 }

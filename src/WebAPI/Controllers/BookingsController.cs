@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwimmingClub.Application.Features.Bookings.Commands;
 using SwimmingClub.Application.Features.Bookings.Queries;
-using SwimmingClub.WebAPI.Controllers;
-
 using SwimmingClub.Application.Features.Members.Commands;
 
 namespace SwimmingClub.WebAPI.Controllers;
@@ -16,8 +14,12 @@ public class BookingsController : BaseController
         => HandleResult(await Mediator.Send(command));
 
     [HttpGet("mirror")]
-    public async Task<IActionResult> GetMirrorView([FromQuery] Guid poolId, [FromQuery] DateTime date)
-        => Ok(await Mediator.Send(new GetMirrorViewQuery(poolId, date)));
+    public async Task<IActionResult> GetMirrorView([FromQuery] Guid poolId, [FromQuery] DateTime date, [FromQuery] Guid? bookingTypeId = null)
+        => Ok(await Mediator.Send(new GetMirrorViewQuery(poolId, date, bookingTypeId)));
+
+    [HttpGet("available-slots")]
+    public async Task<IActionResult> GetAvailableSlots([FromQuery] Guid bookingTypeId, [FromQuery] DateTime date, [FromQuery] int? targetDayOfWeek = null)
+        => Ok(await Mediator.Send(new GetBookingTypeSlotsQuery(bookingTypeId, date, targetDayOfWeek)));
 
     [HttpGet("slot-status")]
     public async Task<IActionResult> GetSlotStatus([FromQuery] Guid poolId, [FromQuery] Guid laneId, [FromQuery] Guid slotId, [FromQuery] DateTime date)

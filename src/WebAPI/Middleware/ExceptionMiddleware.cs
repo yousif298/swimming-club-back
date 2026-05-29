@@ -26,10 +26,11 @@ public class ExceptionMiddleware
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
+            var detail = ex.InnerException != null ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
             var result = JsonSerializer.Serialize(new
             {
                 error = "Internal server error",
-                detail = ex.Message
+                detail = detail
             });
 
             await context.Response.WriteAsync(result);

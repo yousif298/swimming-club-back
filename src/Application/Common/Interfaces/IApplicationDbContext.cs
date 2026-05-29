@@ -16,6 +16,8 @@ public interface IApplicationDbContext
     DbSet<BookingSlot> BookingSlots { get; }
     DbSet<BookingMember> BookingMembers { get; }
     DbSet<BookingScheduleDay> BookingScheduleDays { get; }
+    DbSet<BookingLane> BookingLanes { get; }
+    DbSet<CategorySchedule> CategorySchedules { get; }
     DbSet<Member> Members { get; }
     DbSet<ServicePricing> ServicePricings { get; }
     DbSet<Payment> Payments { get; }

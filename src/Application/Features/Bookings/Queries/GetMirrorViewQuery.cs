@@ -7,7 +7,8 @@ namespace SwimmingClub.Application.Features.Bookings.Queries;
 
 public record GetMirrorViewQuery(
     Guid PoolId,
-    DateTime Date
+    DateTime Date,
+    Guid? BookingTypeId = null
 ) : IRequest<MirrorViewDto>;
 
 public record MirrorViewDto(
@@ -20,7 +21,7 @@ public record MirrorViewDto(
 
 public record LaneMirrorDto(Guid Id, int Number);
 
-public record TimeSlotMirrorDto(Guid Id, string Display, int OrderIndex);
+public record TimeSlotMirrorDto(Guid Id, string Display, int OrderIndex, int? DayOfWeek);
 
 public record MirrorSlotDto(
     Guid LaneId,
@@ -46,15 +47,63 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
             .FirstOrDefaultAsync(p => p.Id == request.PoolId, ct)
             ?? throw new Exception("Pool not found");
 
-        var timeSlots = await _context.TimeSlots
-            .OrderBy(t => t.OrderIndex)
-            .ToListAsync(ct);
+        List<Domain.Entities.TimeSlot> timeSlots;
+
+        if (request.BookingTypeId.HasValue)
+        {
+            var dayOfWeek = (int)request.Date.DayOfWeek;
+
+            timeSlots = await _context.TimeSlots
+                .Where(ts => ts.BookingTypeId == request.BookingTypeId && !ts.IsDeleted && ts.DayOfWeek == dayOfWeek)
+                .OrderBy(t => t.OrderIndex)
+                .ToListAsync(ct);
+
+            if (timeSlots.Count == 0)
+            {
+                var schedule = await _context.CategorySchedules
+                    .Where(cs => cs.BookingTypeId == request.BookingTypeId
+                        && !cs.IsDeleted && cs.IsActive
+                        && (int)cs.DayOfWeek == dayOfWeek)
+                    .FirstOrDefaultAsync(ct);
+
+                if (schedule != null)
+                {
+                    var duration = TimeSpan.FromMinutes(schedule.SlotDurationMinutes);
+                    var current = schedule.StartTime;
+                    var index = 0;
+                    while (current + duration <= schedule.EndTime)
+                    {
+                        timeSlots.Add(new Domain.Entities.TimeSlot
+                        {
+                            Id = Guid.NewGuid(),
+                            StartTime = current,
+                            EndTime = current + duration,
+                            OrderIndex = index++,
+                            DayOfWeek = dayOfWeek,
+                        });
+                        current = current.Add(duration);
+                    }
+                }
+            }
+        }
+        else
+        {
+            timeSlots = await _context.TimeSlots
+                .Where(ts => !ts.IsDeleted)
+                .OrderBy(t => t.OrderIndex)
+                .ToListAsync(ct);
+        }
+
+        var dateStart = request.Date.Date;
+        var dateEnd = dateStart.AddDays(1);
+        var laneIds = pool.Lanes.Select(l => l.Id).ToList();
 
         var exactDateBookings = await _context.Bookings
             .Include(b => b.Customer)
             .Include(b => b.BookingType)
             .Include(b => b.BookingSlots)
-            .Where(b => b.BookingDate == request.Date && b.Lane.PoolId == request.PoolId && !b.IsDeleted)
+            .Include(b => b.BookingLanes)
+            .Where(b => b.BookingDate >= dateStart && b.BookingDate < dateEnd && laneIds.Contains(b.LaneId) && !b.IsDeleted)
             .ToListAsync(ct);
 
         var scheduleBookings = await _context.Bookings
@@ -62,24 +111,36 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
             .Include(b => b.BookingType)
             .Include(b => b.ScheduleDays)
             .Include(b => b.BookingSlots)
+            .Include(b => b.BookingLanes)
             .Where(b => b.DurationMonths.HasValue && b.DurationMonths > 0
                 && b.ScheduleDays.Any()
                 && b.BookingDate <= request.Date
                 && b.BookingDate.AddMonths(b.DurationMonths.Value) > request.Date
-                && b.Lane.PoolId == request.PoolId
+                && laneIds.Contains(b.LaneId)
                 && !b.IsDeleted)
             .ToListAsync(ct);
 
         var lanes = pool.Lanes.Select(l => new LaneMirrorDto(l.Id, l.LaneNumber)).ToList();
-        var slotDtos = timeSlots.Select(t => new TimeSlotMirrorDto(t.Id, t.DisplayTime, t.OrderIndex)).ToList();
+        var slotDtos = timeSlots.Select(t => new TimeSlotMirrorDto(t.Id, t.DisplayTime, t.OrderIndex, t.DayOfWeek)).ToList();
 
         var bookingMap = new Dictionary<(Guid, Guid), Domain.Entities.Booking>();
 
+        void AddBooking(Domain.Entities.Booking b, Guid laneId, Guid slotId)
+        {
+            bookingMap[(laneId, slotId)] = b;
+        }
+
         foreach (var b in exactDateBookings)
         {
-            bookingMap[(b.LaneId, b.SlotId)] = b;
+            AddBooking(b, b.LaneId, b.SlotId);
             foreach (var bs in b.BookingSlots)
-                bookingMap[(b.LaneId, bs.SlotId)] = b;
+                AddBooking(b, b.LaneId, bs.SlotId);
+            foreach (var bl in b.BookingLanes)
+            {
+                AddBooking(b, bl.LaneId, b.SlotId);
+                foreach (var bs in b.BookingSlots)
+                    AddBooking(b, bl.LaneId, bs.SlotId);
+            }
         }
 
         foreach (var b in scheduleBookings)
@@ -87,9 +148,15 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
             if (!b.ScheduleDays.Any(sd => sd.DayOfWeek == request.Date.DayOfWeek))
                 continue;
 
-            bookingMap[(b.LaneId, b.SlotId)] = b;
+            AddBooking(b, b.LaneId, b.SlotId);
             foreach (var bs in b.BookingSlots)
-                bookingMap[(b.LaneId, bs.SlotId)] = b;
+                AddBooking(b, b.LaneId, bs.SlotId);
+            foreach (var bl in b.BookingLanes)
+            {
+                AddBooking(b, bl.LaneId, b.SlotId);
+                foreach (var bs in b.BookingSlots)
+                    AddBooking(b, bl.LaneId, bs.SlotId);
+            }
         }
 
         var slots = new List<MirrorSlotDto>();
@@ -114,6 +181,7 @@ public class GetMirrorViewQueryHandler : IRequestHandler<GetMirrorViewQuery, Mir
                 }
             }
         }
+
 
         return new MirrorViewDto(pool.Id, pool.Name, lanes, slotDtos, slots);
     }
